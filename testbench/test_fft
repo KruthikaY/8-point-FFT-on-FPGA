@@ -1,0 +1,78 @@
+`timescale 1ns/1ps
+
+module test_fft;
+
+  logic clk;
+  logic reset_n;
+  logic ready_in;
+  logic [7:0] data_in;
+  logic [7:0] led;
+
+  fft UUT (
+    .clk(clk),
+    .reset_n(reset_n),
+    .ready_in(ready_in),
+    .data_in(data_in),
+    .led(led)
+  );
+
+  initial begin
+    clk = 0;
+    forever #10 clk = ~clk; // 50 MHz
+  end
+
+  task toggle_ready_low_high();
+    begin
+      ready_in = 0;
+      #2_000_000;   
+      ready_in = 1;
+      #2_000_000;
+    end
+  endtask
+
+  initial begin
+    reset_n = 0;
+    ready_in = 0;
+    data_in = 8'b00000000;
+    #1000;
+    reset_n = 1;
+    #2_000_000;
+
+    // Twiddle index = 0
+    data_in = 8'b00000000;
+    toggle_ready_low_high(); // S1 -- S3
+
+    // Sample b = 2
+    data_in = 8'b00000010;
+    toggle_ready_low_high(); // S4 -- S6
+
+    // Sample a = 3
+    data_in = 8'b00000011;
+    toggle_ready_low_high(); // S7 -- S9
+
+    // Wait for calc
+    #2_000_000;
+
+    // Output toggles
+    // Re(y) -> Im(y) -> Re(z) -> Im(z)
+    ready_in = 0;
+    #2_000_000;
+    ready_in = 1;
+    #2_000_000;
+    ready_in = 0;
+    #2_000_000;
+    ready_in = 1;
+    #2_000_000;
+
+    #5_000_000;
+    $finish;
+  end
+
+  initial begin
+    $monitor("T=%0t rst=%b ready=%b data_in=%b led=%b state=%0d",
+      $time, reset_n, ready_in, data_in, led, UUT.state);
+    $dumpfile("test_fft.vcd");
+    $dumpvars(0, test_fft);
+  end
+
+endmodule
